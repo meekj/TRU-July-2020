@@ -1,6 +1,7 @@
 ---
 title: "ggplot2: Plotting with Variable Variables"
-author: "Jon Meek - Trenton R Users - 18 July 2020"
+author: "Jon Meek - Trenton R Users"
+date: 18 July 2020
 output: html_document
 ---
 
@@ -12,12 +13,15 @@ output: html_document
 }
 </style>
 
+.Rmd file is available at <https://github.com/meekj/TRU-July-2020>
+
 ## Problem
 
-* You have a data frame with more than two colums that you want to plot.
+* You have a data frame with more than two columns that you want to plot.
 * You want to minimize repeated ggplot code blocks
 * You want to quickly pick pairs of variables to plot
 * You want to stack plots with different pairs of variables
+* You need to auto-generate a report where the number and type of plots is data driven
 
 ## Solution
 
@@ -43,25 +47,24 @@ output: html_document
 
 ## To run from command line:
 ## Rscript  -e "rmarkdown::render('~/lab/R/var-var-plot.Rmd', output_dir = '~/r-reports/')"
-##   note: when running this as a .Rmd file you may have to type 'q' to get past the data load
 
 library(dplyr)
 library(ggplot2)
-library(ggpubr) # Align plot grids
-library(palmerpenguins)
-data(package = 'palmerpenguins', verbose = FALSE)
+library(ggpubr)          # Stack plots with ggpubr::ggarrange
+library(palmerpenguins)  # Sample data
 
 pointSize <- 2
 
 theme_jm1 <- theme_bw() + # A decent theme for HTML output
     theme(
-          plot.title  = element_text(size = rel(1.5), family = 'Helvetica', face = 'bold'),
-          plot.subtitle  = element_text(size = rel(1.3), family = 'Helvetica', face = 'bold'),
-          axis.title  = element_text(size = rel(1.5), colour = 'black', face = 'bold'),
-          axis.text.x = element_text(angle=0, size = rel(1.5), lineheight = 0.9, colour = 'black', vjust = 1, face = 'bold'),
-          axis.text.y = element_text(size = rel(1.5), lineheight = 0.9, colour = 'black', hjust = 1, face = 'bold'),
-          legend.key  = element_rect(colour = 'white', fill = 'white'),
-          legend.text = element_text(size = rel(1.3))
+        plot.title  = element_text(size = rel(1.5), family = 'Helvetica', face = 'bold'),
+        plot.subtitle  = element_text(size = rel(1.3), family = 'Helvetica', face = 'bold'),
+        axis.title  = element_text(size = rel(1.5), colour = 'black', face = 'bold'),
+        axis.text.x = element_text(angle=0, size = rel(1.5), lineheight = 0.9, colour = 'black', vjust = 1, face = 'bold'),
+        axis.text.y = element_text(size = rel(1.5), lineheight = 0.9, colour = 'black', hjust = 1, face = 'bold'),
+        legend.title = element_text(size = rel(1.75)),
+        legend.key  = element_rect(colour = 'white', fill = 'white'),
+        legend.text = element_text(size = rel(1.3))
     )
 
 FigureWidth  <- 14
@@ -71,6 +74,8 @@ str(penguins)
 
 ```
 
+***
+
 ## Code Example 1
 
 
@@ -78,17 +83,15 @@ str(penguins)
 
 ## For interactive use select a set of variables, batch job uses the last set defined
 
-vars_to_plot_x <- c('flipper_length_mm', 'bill_length_mm', 'bill_depth_mm')
+vars_to_plot_x <- c('body_mass_g', 'body_mass_g', 'body_mass_g')
 vars_to_plot_y <- c('bill_length_mm', 'bill_depth_mm', 'flipper_length_mm')
 
-vars_to_plot_x <- c('body_mass_g', 'body_mass_g', 'body_mass_g')
+vars_to_plot_x <- c('flipper_length_mm', 'bill_length_mm', 'bill_depth_mm')
 vars_to_plot_y <- c('bill_length_mm', 'bill_depth_mm', 'flipper_length_mm')
 
 penguinPlots <- list()                     # Holds individual plots until they are stacked with ggarrange
 for (varnum in 1:length(vars_to_plot_x)) { # Variable variable names
-
     Title <- paste0('Palmer Penguins', ' - ', vars_to_plot_x[[varnum]], ' - ', vars_to_plot_y[[varnum]])
-
     penguinPlots[[varnum]] <- ggplot(penguins) +
         geom_point(aes_string(x = vars_to_plot_x[[varnum]], y = vars_to_plot_y[[varnum]], colour = 'species'), size = pointSize) +
         xlab(vars_to_plot_x[[varnum]]) + ylab(vars_to_plot_y[[varnum]]) +
@@ -105,6 +108,8 @@ ggarrange(plotlist = penguinPlots, ncol = 1, nrow = length(penguinPlots), align 
 
 ```
 
+***
+
 ## Make it nicer, and more report generator friendly
 
 
@@ -119,17 +124,14 @@ axis_labels_y <- c('Bill Length, mm', 'Bill Depth, mm', 'Flipper Length, mm')
 genPlot <- function(data, title, vars_x, vars_y, ax_lbls_x, ax_lbls_y, var_color) {
     plots <- list()
     for (varnum in 1:length(vars_x)) {
-
         plots[[varnum]] <- ggplot(data) +
             geom_point(aes_string(x = vars_x[[varnum]], y = vars_y[[varnum]], colour = var_color), size = pointSize) +
             xlab(ax_lbls_x[[varnum]]) + ylab(ax_lbls_y[[varnum]]) +
             theme_jm1
-        
         if (varnum == 1) plots[[varnum]] <- plots[[varnum]] + ggtitle(title) # Title only on top plot
     }
     return(plots)
 }
-
 
 ```
 
@@ -137,28 +139,57 @@ genPlot <- function(data, title, vars_x, vars_y, ax_lbls_x, ax_lbls_y, var_color
 
 ```{r Plot2, echo=TRUE, message=FALSE, warning=FALSE, fig.width = FigureWidth, fig.height = FigureHeight}
 
+## Note that all plots are vertically aligned regardless of y-axis tick digits
+
 penguinPlots2 <- genPlot(penguins,'Palmer Penguins', vars_to_plot_x, vars_to_plot_y, axis_labels_x, axis_labels_y, 'species')
-ggarrange(plotlist = penguinPlots2, ncol = 1, nrow = length(penguinPlots2), align = "v")
-
-```
-
-## Generate and display a plot set - colorized by sex
-
-
-```{r Plot3, echo=TRUE, message=FALSE, warning=FALSE, fig.width = FigureWidth, fig.height = FigureHeight}
-
-penguinPlots2 <- genPlot(penguins,'Palmer Penguins', vars_to_plot_x, vars_to_plot_y, axis_labels_x, axis_labels_y, 'sex')
 ggarrange(plotlist = penguinPlots2, ncol = 1, nrow = length(penguinPlots2), align = "v")
 
 ```
 
 ***
 
-## Notes
+## How about labeling the X axis only on the bottom plot?
 
-* ggplot objects "may be" rendered only at print time
+
+```{r Code3, echo=TRUE, message=FALSE, warning=FALSE}
+
+genPlot2 <- function(data, title, vars_x, vars_y, ax_lbls_x, ax_lbls_y, var_color) {
+    plots <- list()
+    for (varnum in 1:length(vars_x)) {
+        plots[[varnum]] <- ggplot(data) +
+            geom_point(aes_string(x = vars_x[[varnum]], y = vars_y[[varnum]], colour = var_color), size = pointSize) +
+            xlab(ax_lbls_x[[varnum]]) + ylab(ax_lbls_y[[varnum]]) +
+            theme_jm1
+        if (varnum == 1)              plots[[varnum]] <- plots[[varnum]] + ggtitle(title)                    # Title only on top plot
+        if (varnum != length(vars_x)) plots[[varnum]] <- plots[[varnum]] + scale_x_continuous(labels = NULL) # X axis labels only on bottom
+    }
+    return(plots)
+}
+
+```
+
+
+## Generate and display a plot set - colorized by sex
+
+
+```{r Plot3, echo=TRUE, message=FALSE, warning=FALSE, fig.width = FigureWidth, fig.height = FigureHeight}
+
+penguinPlots2 <- genPlot2(penguins,'Palmer Penguins', vars_to_plot_x, vars_to_plot_y, axis_labels_x, axis_labels_y, 'sex')
+ggarrange(plotlist = penguinPlots2, ncol = 1, nrow = length(penguinPlots2), align = "v")
+
+```
+
+***
+
+## Conclusion and Notes
+
+* These techniques provide an easier method of producing dynamic reports, where the number of plots is determined by the data
+
+* They should also aid interactive exploratory plotting
+
+* ggplot objects "may" be rendered only at print time
     + Actually this is probably always true but the rendering point might not be obvious
-    + This will result in the expected labels but only the last defined data set
+    + This could result in the expected labels but only the last defined data set
 	+ We do not have this problem with the above examples
 
 ***
